@@ -118,7 +118,7 @@ for ts in transcripts:
     if transcripts[ts]['quality']<MIN_QUALITY:
         continue
     total_good += 1
-
+total_good = len(transcripts)
 #
 # main 
 #
@@ -138,8 +138,8 @@ for ts in transcripts:
 
     entry = transcripts[cfn]
 
-    if entry['quality']<MIN_QUALITY:
-        continue
+    #if entry['quality']<MIN_QUALITY:
+    #   continue
 
     if cnt % options.stride == 0:
 

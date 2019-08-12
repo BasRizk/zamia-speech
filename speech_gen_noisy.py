@@ -115,6 +115,7 @@ misc.mkdirs(out_dir)
 
 fg_lens = {}
 
+print str(fg_dir)
 for fgfn in os.listdir(fg_dir):
 
     wav = wave.open('%s/%s' % (fg_dir, fgfn), 'r')
@@ -161,7 +162,8 @@ for bgfn in os.listdir(bg_dir):
 #
 # count good transcripts
 #
-
+print str(transcripts)
+print str(len(transcripts))
 total_good = 0
 for ts in transcripts:
 
@@ -169,6 +171,9 @@ for ts in transcripts:
         continue
     total_good += 1
 
+print str(total_good)
+total_good = len(transcripts)
+print str(total_good)
 #
 # main 
 #
@@ -177,7 +182,7 @@ cnt = 1
 random.seed(42)
 
 for ts in transcripts:
-
+    # print str(ts)
     # print type(transcripts)
 
     if DEBUG_LIMIT:
@@ -187,9 +192,10 @@ for ts in transcripts:
         cfn   = transcripts[ts]['cfn']
 
     entry = transcripts[cfn]
+    # print str(entry)
 
-    if entry['quality']<MIN_QUALITY:
-        continue
+    # if entry['quality']<MIN_QUALITY:
+    #    continue
 
     if cnt % options.stride == 0:
         infn     = '%s/%s/%s.wav' % (wav16_dir, corpus_in, cfn)
