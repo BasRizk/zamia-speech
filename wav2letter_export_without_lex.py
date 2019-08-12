@@ -52,7 +52,7 @@ misc.init_app(APP_NAME)
 # commandline
 #
 
-parser = OptionParser("usage: %prog [options] <model_name> <dictionary> <language_model> <audio_corpus> [ <audio_corpus2> ... ]")
+parser = OptionParser("usage: %prog [options] <model_name> <DUMMY LEX PATH> <language_model> <audio_corpus> [ <audio_corpus2> ... ]")
 
 parser.add_option ("-d", "--debug", dest="debug", type='int', default=0, help="Limit number of sentences (debug purposes only), default: 0")
 
@@ -111,18 +111,10 @@ misc.mkdirs('%s/valid' % data_dir)
 misc.mkdirs('%s/train' % data_dir)
 
 #
-# load dict
-#
-
-logging.info("loading lexicon...")
-lex = Lexicon(file_name=dictionary)
-logging.info("loading lexicon...done.")
-
-#
 # language model
 #
 
-misc.copy_file('%s/lm.arpa' % language_model_dir, '%s/lm.arpa' % data_dir)
+#misc.copy_file('%s/lm.arpa' % language_model_dir, '%s/lm.arpa' % data_dir)
 
 
 #
@@ -154,45 +146,22 @@ def export_audio (train_val, tsdict):
 
         ts = tsdict[utt_id]
 
-        tokens = tokenize(ts['ts'], lang=options.lang)
-
-        covered_by_lex = True
-        for token in tokens:
-            if not (token in lex):
-                logging.error(u'token %s missing from dict!' % token)
-                logging.error(u'utt_id: %s' % utt_id)
-                logging.error(u'ts: %s' % ts['ts'])
-                covered_by_lex = False
-                break
-
-        if not covered_by_lex:
-            continue
+#        tokens = tokenize(ts['ts'], lang=options.lang)
+#        logging.info(">> Tokens are: " + str(tokens)) 
 
         with codecs.open('%s/%09d.id'  % (destdirfn, utt_num[train_val]), 'w', 'utf8') as idf,   \
              codecs.open('%s/%09d.tkn' % (destdirfn, utt_num[train_val]), 'w', 'utf8') as tknf,  \
              codecs.open('%s/%09d.wrd' % (destdirfn, utt_num[train_val]), 'w', 'utf8') as wrdf   :
 
-            tkn = u''
-            wrd = u''
-            for token in tokens:
-
-                ipas = lex[token]['ipa'] 
-                xsr = ipa2xsampa(token, ipas, spaces=True)
-
-                xs = (xsr.replace('-', '')
-                         .replace('\' ', '\'')
-                         .replace('  ', ' ')
-                         .replace('#', 'nC'))
-
-                if tkn:
-                    tkn += u' | '
-                    wrd += u' '
-
-                tkn += xs
-                wrd += token
-                
-            tknf.write('%s\n' % tkn)
-            wrdf.write('%s\n' % wrd)
+            
+             # wrd
+            wrds = ts['ts'].strip().lower()
+               
+            # ltr
+            tkns = " | ".join([" ".join(w) for w in wrds.split()])
+        
+            tknf.write('%s\n' % tkns)
+            wrdf.write('%s\n' % wrds)
             idf.write('utt_id\t%s\ncorpus\t%s\nlang\t%s\n' % (utt_id, ts['corpus_name'], options.lang))
 
             os.symlink('%s/%s/%s.wav' % (wav16_dir, ts['corpus_name'], utt_id), '%s/%09d.wav' % (destdirfn, utt_num[train_val]))
@@ -225,55 +194,17 @@ for audio_corpus in audio_corpora:
     logging.info("exported transcripts from %s: %d train, %d test samples." % (audio_corpus, len(ts_train), len(ts_test)))
 
 #
-# export dict
-#
-
-logging.info("Exporting dictionary...")
-
-utt_dict = {}
-for token in lex:
-    utt_dict[token] = lex.dictionary[token]['ipa']
-
-dictfn = '%s/lexicon.txt' % data_dir
-phoneme_set = set()
-with codecs.open(dictfn, 'w', 'utf8') as dictf:
-
-    for token in sorted(utt_dict):
-
-        ipa = utt_dict[token]
-        xsr = ipa2xsampa(token, ipa, spaces=True)
-
-        xs = (xsr.replace('-', '')
-                 .replace('\' ', '\'')
-                 .replace('  ', ' ')
-                 .replace('#', 'nC'))
-
-        dictf.write(u'%s %s\n' % (token, xs))
-
-        for p in xs.split(' '):
-
-            if len(p) < 1:
-                logging.error(
-                    u"****ERROR: empty phoneme in : '%s' ('%s', ipa: '%s', token: '%s')" % (
-                    xs, xsr, ipa, token))
-
-            phoneme_set.add(p)
-
-logging.info("%s written." % dictfn)
-logging.info("Exporting dictionary ... done.")
-
-#
-# export phoneme set
+# export tokens set
 #
 
 tokensfn = '%s/tokens.txt' % data_dir
 
 with codecs.open(tokensfn, 'w', 'utf8') as tokensf:
-
-    tokensf.write('|\n')
-
-    for token in sorted(phoneme_set):
-        tokensf.write(u'%s\n' % token)
+    tokensf.write("|\n")
+    tokensf.write("'\n")
+    for alphabet in range(ord("a"), ord("z") + 1):
+        tokensf.write(chr(alphabet) + "\n")
+        
 
 logging.info("%s written." % tokensfn)
 

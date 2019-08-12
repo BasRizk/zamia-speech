@@ -94,10 +94,10 @@ data_dir = '%s/data' % work_dir
 #
 
 config = misc.load_config ('.speechrc')
-
+#
 w2l_env_activate = "conda activate wav2letterGPU"
-w2l_train        = "/home/ironbas3/wav2letter/wav2letter/build/Train"
-wav16_dir        = config.get("speech", "wav16")
+w2l_train        = "./home/ironbas3/wav2letter/wav2letter/build/Train"
+wav16_dir        = "/home/ironbas3/SpeechDS/wav16"
 
 #
 # create basic work dir structure
@@ -155,7 +155,6 @@ def export_audio (train_val, tsdict):
         ts = tsdict[utt_id]
 
         tokens = tokenize(ts['ts'], lang=options.lang)
-
         covered_by_lex = True
         for token in tokens:
             if not (token in lex):
