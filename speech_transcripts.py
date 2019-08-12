@@ -140,7 +140,7 @@ class Transcripts(object):
 
         f.close()
 
-    def split(self, limit=0, min_quality=2, add_all=False):
+    def split(self, limit=0, min_quality=0, add_all=False):
 
         ts_all   = {}
         ts_train = {}
