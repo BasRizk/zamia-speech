@@ -98,7 +98,8 @@ def scan_audiodir(audiodir, transcripts, out_wav16_subdir):
                     prompts[afn] = ts.replace(';',',')
 
             # print repr(prompts)
-
+        
+        unconverted_files = []
         for audiodirfn in [wavdirfn, flacdirfn]:
 
             if not os.path.isdir(audiodirfn):
@@ -110,33 +111,42 @@ def scan_audiodir(audiodir, transcripts, out_wav16_subdir):
                 cfn = '%s_%s' % (subdir, audiofn)
                 cfn_audio.add(cfn)
 
-                if not cfn in transcripts:
-                    # import pdb; pdb.set_trace()
-
-                    # print repr(prompts)
-                    prompt = prompts[audiofn] if audiofn in prompts else ''
-
-                    logging.info ("new audio found: %s %s %s" % (cfn, audiofn, prompt))
-
-                    spk     = cfn.split('-')[0]
-
-                    v = { 'dirfn'   : os.path.basename(os.path.normpath(subdirfn)),
-                          'audiofn' : audiofn,
-                          'prompt'  : prompt,
-                          'ts'      : '',
-                          'quality' : 0,
-                          'spk'     : spk}
-
-                    transcripts[cfn] = v
-
-                audio_convert (cfn, subdir, audiofn, audiodir, out_wav16_subdir)
+                converted = audio_convert (cfn, subdir, audiofn, audiodir, out_wav16_subdir)
+                
+                if converted:
+                    if not cfn in transcripts:
+                        # import pdb; pdb.set_trace()
+    
+                        # print repr(prompts)
+                        prompt = prompts[audiofn] if audiofn in prompts else ''
+    
+                        logging.info ("new audio found: %s %s %s" % (cfn, audiofn, prompt))
+    
+                        spk     = cfn.split('-')[0]
+    
+                        v = { 'dirfn'   : os.path.basename(os.path.normpath(subdirfn)),
+                              'audiofn' : audiofn,
+                              'prompt'  : prompt,
+                              'ts'      : '',
+                              'quality' : 0,
+                              'spk'     : spk}
+    
+                        transcripts[cfn] = v
+                else:
+                    unconverted_files.append(cfn)
+                    print "unconverted file!"
 
     # report missing audio files
     for cfn in sorted(transcripts):
         if cfn in cfn_audio:
             continue
         logging.warn('audio file missing for %s' % cfn)
+        
+    # report unconverted audio files
+    for cfn in sorted(unconverted_files):
+        logging.warn('audio file unconverted : %s' % cfn)
 
+    print "Total unconverted files aka ignored : " + str(len(unconverted_files))
 
 def audio_convert(cfn, subdir, fn, audiodir, wav16_dir):
     # global mfcc_dir
@@ -148,7 +158,7 @@ def audio_convert(cfn, subdir, fn, audiodir, wav16_dir):
     if not os.path.isfile(w16filename):
 
         wavfilename = "%s/%s/wav/%s.wav" % (audiodir, subdir, fn)
-
+        
         if not os.path.isfile(wavfilename):
             # flac ?
             flacfilename = "%s/%s/flac/%s.flac" % (audiodir, subdir, fn)
@@ -157,14 +167,21 @@ def audio_convert(cfn, subdir, fn, audiodir, wav16_dir):
                 print "   WAV file '%s' does not exist, neither does FLAC file '%s' => skipping submission." % (
                 wavfilename, flacfilename)
                 return False
-
+            
+            if os.stat(flacfilename).st_size <= 0:
+                print "   FLAC file '%s' is too small => skipping submission." % (flacfilename)
+                return False
+            
             print "%-20s: converting %s => %s (16kHz mono)" % (
             cfn, flacfilename, w16filename)
             os.system(
                 "sox '%s' -r 16000 -b 16 -c 1 %s" % (flacfilename, w16filename))
 
         else:
-
+            if os.stat(wavfilename).st_size <= 0:
+                print "   WAV file '%s' is too small => skipping submission." % (wavfilename)
+                return False
+            
             print "%-20s: converting %s => %s (16kHz mono)" % (
             cfn, wavfilename, w16filename)
             os.system(
