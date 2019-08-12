@@ -35,29 +35,44 @@ from nltools.tokenizer      import tokenize
 
 from speech_transcripts     import Transcripts
 
-WORKDIR             = 'data/dst/speech/%s/deepspeech'
+APP_NAME            = 'speech_deepspeech_export'
+
+#WORKDIR             = 'data/dst/speech/%s/deepspeech'
 PROMPT_AUDIO_FACTOR = 1000
+
+LANGUAGE_MODELS_DIR = 'data/dst/lm'
+ASR_MODELS_DIR      = 'data/dst/asr-models'
+
 
 #
 # init 
 #
 
-misc.init_app ('speech_deepspeech_export')
-
-config = misc.load_config ('.speechrc')
+misc.init_app (APP_NAME)
 
 #
 # commandline parsing
 #
 
-parser = OptionParser("usage: %prog [options] )")
+#parser = OptionParser("usage: %prog [options] )")
+#
+#parser.add_option ("-d", "--debug", dest="debug", type='int', default=0,
+#                   help="limit number of transcripts (debug purposes only), default: 0 (unlimited)")
+#parser.add_option ("-l", "--lang", dest="lang", type = "str", default='de',
+#                   help="language (default: de)")
+#parser.add_option ("-v", "--verbose", action="store_true", dest="verbose",
+#                   help="enable verbose logging")
 
-parser.add_option ("-d", "--debug", dest="debug", type='int', default=0,
-                   help="limit number of transcripts (debug purposes only), default: 0 (unlimited)")
-parser.add_option ("-l", "--lang", dest="lang", type = "str", default='de',
-                   help="language (default: de)")
-parser.add_option ("-v", "--verbose", action="store_true", dest="verbose",
-                   help="enable verbose logging")
+parser = OptionParser("usage: %prog [options] <model_name> <DUMMY LEX PATH> <language_model> <audio_corpus> [ <audio_corpus2> ... ]")
+
+parser.add_option ("-d", "--debug", dest="debug", type='int', default=0, help="Limit number of sentences (debug purposes only), default: 0")
+
+parser.add_option ("-l", "--lang", dest="lang", type = "str", default='de', help="language (default: de)")
+
+parser.add_option ("-p", "--prompt-words", action="store_true", dest="prompt_words", help="Limit dict to tokens covered in prompts")
+
+parser.add_option ("-v", "--verbose", action="store_true", dest="verbose", help="verbose output")
+
 
 (options, args) = parser.parse_args()
 
@@ -66,30 +81,63 @@ if options.verbose:
 else:
     logging.basicConfig(level=logging.INFO)
 
+if len(args) < 4:
+    parser.print_usage()
+    sys.exit(1)
+
+model_name     = args[0]
+dictionary     = args[1]
+language_model = args[2]
+audio_corpora  = args[3:]
+
+language_model_dir = '%s/%s' % (LANGUAGE_MODELS_DIR, language_model)
+
+work_dir = '%s/deepspeech/%s' % (ASR_MODELS_DIR, model_name)
+data_dir = '%s/data' % work_dir
+
+if not os.path.isdir(language_model_dir):
+    logging.error(
+        "Could not find language model directory {}. Create a language "
+        "model first with speech_build_lm.py.".format(language_model_dir))
+    sys.exit(1)
 #
 # config
 #
 
-work_dir    = WORKDIR %options.lang 
+config = misc.load_config ('.speechrc')
 
-wav16_dir   = config.get("speech", "wav16_dir_%s" % options.lang)
+#work_dir    = WORKDIR %options.lang 
+wav16_dir   = config.get("speech", "wav16")
 
 #
 # load transcripts
 #
 
 logging.info ( "loading transcripts...")
-transcripts = Transcripts(corpus_name=options.lang)
+transcripts = Transcripts(corpus_name=audio_corpora[0])
 logging.info ( "loading transcripts...done. %d transcripts." % len(transcripts))
 logging.info ("splitting transcripts...")
 ts_all, ts_train, ts_test = transcripts.split()
 logging.info ("splitting transcripts done, %d train, %d test." % (len(ts_train), len(ts_test)))
 
+#misc.mkdirs('%s' % work_dir)
+
 #
-# create work_dir 
+# create basic work dir structure
 #
 
-misc.mkdirs('%s' % work_dir)
+cmd = 'rm -rf %s' % work_dir
+logging.info(cmd)
+os.system(cmd)
+
+misc.mkdirs('%s/valid' % data_dir)
+misc.mkdirs('%s/train' % data_dir)
+
+#
+# language model
+#
+
+#misc.copy_file('%s/lm.arpa' % language_model_dir, '%s/lm.arpa' % data_dir)
 
 # export csv files
 
@@ -103,17 +151,18 @@ vocabulary = []
 def export_ds(ds, csv_fn):
 
     global alphabet
+    corpora_dir = '%s/%s' % (wav16_dir, audio_corpora[0])
 
+    
     cnt = 0
     with codecs.open(csv_fn, 'w', 'utf8') as csv_f:
 
         csv_f.write('wav_filename,wav_filesize,transcript\n')
 
-
         for cfn in ds:
             ts = ds[cfn]
 
-            wavfn  = '%s/%s.wav' % (wav16_dir, cfn)
+            wavfn  = '%s/%s.wav' % (corpora_dir, cfn)
             wavlen = os.path.getsize(wavfn)
             prompt = ts['ts']
 
